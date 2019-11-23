@@ -84,14 +84,7 @@ df %>%
   )
 
 ggsave(
-  "c:/Users/pmass/Desktop/test.pdf",
-  device = cairo_pdf,
-  width = 6,
-  height = 6 / 1.6
-)
-
-ggsave(
-  here::here("graphs", "tidytuesday_week47.png"),
+  here::here("graphs", "tidytuesday_2019_week47.png"),
   type = "cairo",
   dpi = 600,
   width = 6,
