@@ -10,3 +10,7 @@ My contributions to the [Tidytuesday](https://github.com/rfordatascience/tidytue
 ## Week 47
 
 ![](graphs/tidytuesday_2019_week47.png)
+
+## Week 49
+
+![](graphs/tidytuesday_2019_week97.png)
