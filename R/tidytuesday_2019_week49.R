@@ -137,11 +137,19 @@ p_final <- p[[1]] + p[[2]] + p[[3]] + p[[4]] +
     )
   )
 
+# Save plot ---------------------------------------------------------------
+
+destfile <- here::here("graphs", "tidytuesday_2019_week49.pdf")
+
 ggsave(
-  here::here("graphs", "tidytuesday_2019_week49.png"),
-  type = "cairo",
-  dpi = 600,
+  destfile,
+  device = cairo_pdf,
   width = 9,
   height = 12
 )
 
+knitr::plot_crop(destfile)
+
+bitmap <- pdftools::pdf_render_page(destfile, dpi = 600)
+destfile <- here::here("graphs", "tidytuesday_2019_week49.png")
+png::writePNG(bitmap, destfile)
