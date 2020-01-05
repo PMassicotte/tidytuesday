@@ -1,0 +1,223 @@
+---
+title: Tidytuesday (2019-08-06)
+author: Philippe Massicotte
+date: '2019-08-06'
+slug: tidytuesday-2019-08-06
+categories: []
+tags:
+  - Tidytuesday
+  - Tidyverse
+  - Bob Ross
+type: ''
+subtitle: 'Bob Ross - painting by the numbers'
+description: 'test'
+image: ''
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  cache = FALSE,
+  dpi = 300,
+  out.width = "100%",
+  fig.align = "center",
+  fig.width = 8,
+  fig.asp = 0.618, # 1 / phi
+  fig.show = "hold",
+  dev = "svglite",
+  message = FALSE,
+  warning = FALSE,
+  echo = TRUE
+)
+
+library(tidyverse)
+library(ggpmthemes)
+library(glue)
+library(ggforce)
+
+theme_set(theme_poppins())
+```
+
+This week [TidyTuesday](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-08-06) is entitled *Bob Ross - painting by the numbers*. To cite [fivethirtyeight](https://fivethirtyeight.com/features/a-statistical-analysis-of-the-work-of-bob-ross/):
+
+> Bob Ross was a consummate teacher. He guided fans along as he painted “happy trees,” “almighty mountains” and “fluffy clouds” over the course of his 11-year television career on his PBS show, “The Joy of Painting.” In total, Ross painted 381 works on the show, relying on a distinct set of elements, scenes and themes...
+
+<div style="width:75%;height:0;padding-bottom:77%;position:relative;"><iframe src="https://giphy.com/embed/AbPNdmgk6TJK" width="100%" height="100%" style="position:absolute" frameBorder="0" class="giphy-embed" allowFullScreen></iframe></div><p><a href="https://giphy.com/gifs/bob-ross-AbPNdmgk6TJK">via GIPHY</a></p>
+
+## The data 
+
+The dataset consists of various keywords describing the content of Bob Ross paintings.
+
+```{r}
+bob_ross <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-06/bob-ross.csv") %>%
+  janitor::clean_names() %>%
+  mutate(title = str_to_title(title))
+
+bob_ross <- bob_ross %>%
+  select(-contains("frame")) %>%
+  pivot_longer(
+    -c(episode, title),
+    names_to = "keyword",
+    values_to = "is_present"
+  ) %>%
+  separate(episode, into = c("season", "episode"), sep = "E") %>%
+  mutate(season = str_extract(season, "[:digit:]+")) %>%
+  mutate_at(vars(season, episode), parse_number) %>%
+  mutate(keyword = str_replace(keyword, "_", " ")) %>%
+  mutate(keyword = str_to_title(keyword))
+
+bob_ross
+```
+
+There are a total of `r n_distinct(bob_ross$keyword)` keywords used to describe his paintings. Upon my first exploration, I found some keywords were duplicated between words in singular and plural:
+
+- lake/lakes
+- mountain/mountains
+- tree/trees
+
+```{r}
+bob_ross %>%
+  distinct(keyword) %>%
+  pull(keyword)
+```
+Let's do some more cleaning to the data.
+
+```{r}
+bob_ross <- bob_ross %>%
+  mutate(keyword = case_when(
+    keyword == "Lake" ~ "Lakes",
+    keyword == "Mountain" ~ "Mountains",
+    keyword == "Tree" ~ "Trees",
+    TRUE ~ keyword
+  ))
+
+bob_ross <- bob_ross %>%
+  group_by(season, episode, title, keyword) %>%
+  summarise(is_present = sum(is_present)) %>%
+  mutate(is_present = ifelse(is_present >= 1, 1, 0)) %>%
+  ungroup()
+
+bob_ross %>%
+  distinct(keyword) %>%
+  pull()
+```
+
+## The painting of Bob Ross
+
+### Most painted objects
+
+```{r, fig.height=7, fig.asp=NA}
+top_painting_elements <- bob_ross %>%
+  group_by(keyword) %>%
+  summarise(n_painting = sum(is_present), total_painting = n_distinct(title)) %>%
+  mutate(percent_object = n_painting / total_painting) %>%
+  mutate(keyword = glue("{keyword} ({round(percent_object * 100, digits = 0)}%)")) %>%
+  mutate(keyword = fct_reorder(keyword, percent_object))
+
+top_painting_elements %>%
+  filter(percent_object >= 0.1) %>%
+  ggplot(aes(x = keyword, y = percent_object)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent, expand = expand_scale(mult = c(0, 0.1))) +
+  xlab(NULL) +
+  ylab("Percentage (%)") +
+  labs(title = "Bob Ross most painted elements") +
+  labs(subtitle = "Only showing items present more than 10% of the time") +
+  theme(
+    panel.grid = element_line(colour = NULL),
+    panel.grid.minor = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.line = element_blank(),
+    panel.border = element_blank()
+  )
+```
+
+
+```{r}
+top_painting_element <- bob_ross %>%
+  group_by(keyword) %>%
+  summarise(n = sum(is_present)) %>%
+  ungroup() %>%
+  filter(dense_rank(desc(n)) < 10) %>%
+  inner_join(bob_ross) %>%
+  group_by(season, keyword) %>%
+  summarise(n = sum(is_present)) %>%
+  ungroup() %>%
+  arrange(desc(n))
+```
+
+### Trends in most painted elements
+
+Are there any trends in the most painted elements?
+
+```{r, fig.height = 7, fig.asp=NA, dev='jpeg'}
+
+df <- top_painting_element %>%
+  distinct(keyword) %>%
+  arrange(keyword) %>%
+  mutate(icon = case_when(
+    keyword == "Bushes" ~ emoji("herb"),
+    keyword == "Clouds" ~ emoji("cloud"),
+    keyword == "Conifer" ~ emoji("palm_tree"),
+    keyword == "Deciduous" ~ emoji("deciduous_tree"),
+    keyword == "Grass" ~ emoji("seedling"),
+    keyword == "Lakes" ~ emoji("ocean"),
+    keyword == "Mountains" ~ emoji("mount_fuji"),
+    keyword == "River" ~ emoji("ocean"),
+    keyword == "Trees" ~ emoji("evergreen_tree")
+  )) %>%
+  inner_join(top_painting_element) %>%
+  mutate(keyword = paste(keyword, icon))
+
+df %>%
+  mutate(keyword = fct_reorder(str_to_title(keyword), desc(n), .fun = sum)) %>%
+  ggplot(aes(x = season, y = n)) +
+  geom_line(size = 1) +
+  facet_wrap(~keyword) +
+  theme(legend.position = "none") +
+  xlab("Season #") +
+  ylab("Number of painted elements") +
+  labs(title = "Most popular painted elements") +
+  labs(subtitle = "Based on the nine most painted elements for all the episodes")
+```
+
+Heat map showing all the `r n_distinct(bob_ross$keyword)` elements in the database.
+
+```{r, fig.height=8, fig.asp=NA}
+bob_ross %>%
+  group_by(season, keyword) %>%
+  summarise(n = sum(is_present)) %>%
+  ungroup() %>%
+  mutate(keyword = str_replace(keyword, "_", " ")) %>%
+  mutate(keyword = str_to_title(keyword)) %>%
+  mutate(keyword = fct_reorder(keyword, n, sum)) %>%
+  ggplot(aes(x = season, y = keyword, fill = n)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "plasma", labels = function(x) round(x)) +
+  scale_x_continuous(expand = c(0, 0), breaks = seq(0, 35, by = 5)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  xlab("Season #") +
+  ylab(NULL) +
+  labs(fill = "Number of painted element") +
+  theme(legend.position = "bottom") +
+  guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5)) +
+  labs(title = "Heat map of all painted elements") +
+  labs(subtitle = "Over all the season") +
+  theme(
+    panel.border = element_blank(),
+    axis.ticks = element_blank()
+  )
+
+ggsave(
+  here::here("graphs", "tidytuesday_2019_week32.png"),
+  type = "cairo",
+  dpi = 600,
+  height = 8,
+  width = 8
+)
+```
+

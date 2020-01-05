@@ -1,0 +1,163 @@
+---
+title: 'Tidytuesday: video games'
+author: Philippe Massicotte
+date: '2019-07-30'
+slug: tidytuesday-video-games
+categories:
+  - R
+  - Tidytuesday
+tags: []
+type: ''
+subtitle: ''
+image: ''
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  cache = FALSE,
+  dpi = 300,
+  out.width = "100%",
+  fig.align = "center",
+  fig.width = 8,
+  fig.asp = 0.618, # 1 / phi
+  fig.show = "hold",
+  dev = "svg",
+  message = FALSE
+)
+
+library(tidyverse)
+library(ggpmthemes)
+library(glue)
+theme_set(theme_poppins())
+```
+
+I must admit, I played a lot of PC video games when I was younger, *Battlefield*, *Half-life*, *Dark Age of Camelot*, *World of Warcraft*, *Diablo* just to name a few. This is why this week [tidytuesday](https://github.com/rfordatascience/tidytuesday) was a good occasion to participate in this weekly R visualization challenge. 
+
+## Video Games Dataset
+
+> This week's data comes courtesy of Liza Wood via Steam Spy. She recently published a blog post on her data analysis of this video game data. She was kind enough to provide a fairly clean dataset, and I have done some small additional clean up seen below. There is time played, ownership, release date, publishing information, and for some a metascore! Lots of ways to slice and dice this data!
+
+Let us get started! First, read the data and remove duplicated entries.
+
+```{r}
+video_games <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-30/video_games.csv") %>%
+  mutate(release_date = as.Date(release_date, "%b %d, %Y")) %>%
+  distinct(game, developer, publisher, .keep_all = TRUE)
+```
+
+## Top played games
+
+Which games have the highest average playing time in the past two weeks? In the following graph, it can be seen that *Clicker Heroes* (released in 2015) has an average playtime of about 80 hours. That is 40 hours per week, a full-time job.
+
+```{r}
+video_games %>%
+  top_n(16, average_playtime) %>%
+  mutate(game = glue("{game} ({lubridate::year(release_date)})")) %>%
+  mutate(game = fct_reorder(game, average_playtime)) %>%
+  ggplot(aes(x = game, y = average_playtime / 60)) +
+  geom_col() +
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Average played time (hours)") +
+  labs(title = str_wrap("Average played time for the last two weeks", 25)) +
+  labs(subtitle = "Only the top 16 averaged played game are shown")
+```
+
+## Temporal evolution of metascore
+
+What is the evolution of the metascore by the publishers? It seems that *high ranked* publishers have pretty constant metascore for their games. However, there is an interesting decreasing trend with *SEGA* that started in 2006.
+
+```{r}
+equal_breaks <- function(n = 3, s = 0.05, ...) {
+  function(x) {
+    # rescaling
+    d <- s * diff(range(x)) / (1 + 2 * s)
+    seq(min(x) + d, max(x) - d, length = n)
+  }
+}
+
+video_games %>%
+  drop_na(metascore) %>%
+  add_count(publisher) %>%
+  filter(dense_rank(desc(n)) <= 6) %>%
+  group_by(year = lubridate::year(release_date), publisher) %>%
+  summarise(mean_metascore = mean(metascore), sd_metascore = sd(metascore)) %>%
+  ggplot(aes(x = year, y = mean_metascore)) +
+  geom_line(size = 2) +
+  facet_wrap(~publisher, scale = "free_x") +
+  scale_x_continuous(
+    labels = function(x) floor(x),
+    breaks = equal_breaks(n = 4, s = 0.05)
+  ) +
+  xlab(NULL) +
+  ylab("Median metascore") +
+  theme(legend.position = "none") +
+  theme(panel.spacing = unit(2, "lines")) +
+  labs(title = "Time series of metascore by publisher") +
+  labs(subtitle = "Only the six publishers with the highest number of release are shown")
+
+ggsave(
+  here::here("graphs", "tidytuesday_2019_week31.png"),
+  type = "cairo",
+  dpi = 600,
+  height = 8 * 0.6,
+  width = 8
+)
+```
+
+## Price evolution of games
+
+The median prices of the released game appear to decrease between 2015 and 2018. Also, we can see the lowest prices are happening in January, right after Christmas.
+
+```{r}
+video_games %>%
+  drop_na(release_date) %>%
+  group_by(year = lubridate::year(release_date), month = lubridate::month(release_date, label = TRUE)) %>%
+  summarise(medan_price = median(price, na.rm = TRUE)) %>%
+  ggplot(aes(x = year, y = month, fill = medan_price)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "A", labels = scales::dollar) +
+  coord_equal() +
+  scale_x_continuous(expand = c(0, 0), breaks = seq(2000, 2020, by = 2)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  labs(fill = "Median\nprice (USD)") +
+  xlab(NULL) +
+  ylab(NULL) +
+  labs(title = "Price evolution of games") +
+  labs(subtitle = "Median price calculated monthly and yearly")
+```
+
+There is a clear peak in November 2006 which can be explained by few game prices above 10$.
+
+```{r}
+video_games %>%
+  filter(
+    lubridate::year(release_date) == 2006 &
+      lubridate::month(release_date) == 11
+  ) %>%
+  select(game, release_date, price) %>%
+  arrange(desc(price)) %>%
+  knitr::kable()
+```
+
+## Most expensive games
+
+I was also surprised to see that the most expensive game was almost 600$ USD!
+
+```{r}
+video_games %>%
+  top_n(5, price) %>%
+  mutate(game = glue("{game} ({lubridate::year(release_date)})")) %>%
+  mutate(game = str_wrap(game, 30)) %>%
+  mutate(game = fct_reorder(game, price)) %>%
+  ggplot(aes(x = game, y = price)) +
+  geom_col() +
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Price (USD)") +
+  labs(title = "Top priced games") +
+  labs(subtitle = "Only shows the top 5 most expensive games") +
+  scale_y_continuous(labels = scales::dollar)
+```

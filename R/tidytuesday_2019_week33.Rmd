@@ -1,0 +1,183 @@
+---
+title: Tidytuesday (2019-08-13)
+author: Philippe Massicotte
+date: '2019-08-14'
+slug: tidytuesday-2019-08-13
+categories: []
+tags:
+  - Tidytuesday
+  - Tidyverse
+type: ''
+image: ''
+subtitle: 'Roman Emperors'
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = "#>",
+  collapse = TRUE,
+  cache = FALSE,
+  dpi = 300,
+  out.width = "100%",
+  fig.align = "center",
+  fig.width = 8,
+  fig.asp = 0.618, # 1 / phi
+  fig.show = "hold",
+  dev = "svglite",
+  message = FALSE,
+  warning = FALSE,
+  echo = TRUE
+)
+
+library(tidyverse)
+library(ggpmthemes)
+library(glue)
+library(ggforce)
+
+theme_set(theme_poppins())
+```
+
+This week, the [TidyTuesday challenge](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-08-13) is about Roman emperors. The dataset provides the name, birth, death and reign information for 68 Roman emperors.
+
+## The data
+
+```{r}
+emperors <-
+  readr::read_csv(
+    "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-13/emperors.csv"
+  )
+
+emperors
+```
+
+## Exploratory graph
+
+In the following graph, I wanted to visualize the relationship between the age and the reign duration of each emperor. First, lets calculate the age and the reign period of each emperor.
+
+```{r}
+emperors <- emperors %>%
+  drop_na(death, birth, reign_start, reign_end) %>%
+  filter(death >= birth) %>%
+  mutate(age = lubridate::time_length(death - birth, unit = "year")) %>% 
+  mutate(reign_duration = lubridate::time_length(reign_end - reign_start, unit = "year")) 
+```
+
+I can now graph the relationship between the age and the reign duration of each emperor.
+
+```{r, fig.height=14, fig.asp=NA}
+emperors %>% 
+  mutate(
+    name = glue(
+      "{name} ({round(age, digits = 0)} years old)"
+    )
+  ) %>%
+  mutate(name = fct_reorder(name, death)) %>%
+  ggplot(aes(
+    x = birth,
+    xend = death,
+    y = name,
+    yend = name
+  )) +
+  geom_segment(size = 3, lineend = "round", aes(color = dynasty)) +
+  geom_segment(
+    aes(x = reign_start, xend = reign_end),
+    color = "black",
+    size = 1,
+    lineend = "round"
+  ) +
+  geom_label(aes(
+    x = death,
+    y = name,
+    label = glue(
+      "Reign: {round(reign_duration, digits = 2)} years"
+    )
+  ),
+  hjust = -0.1,
+  label.size = 0,
+  size = 3,
+  family = "Poppins"
+  ) +
+  geom_mark_circle(
+    aes(
+      label = glue("{name}"),
+      description = "The oldest emperor",
+      filter = age == max(age),
+      color = dynasty
+    ),
+    expand = unit(0.01, "mm"),
+    label.family = c("Poppins"),
+    label.fontsize = 8,
+    label.buffer = unit(5, "mm"),
+    label.hjust = 1, 
+    show.legend = FALSE
+  ) +
+  geom_mark_circle(
+    aes(
+      label = glue("{name}"),
+      description = "The longest reign",
+      filter = reign_duration == max(reign_duration),
+      color = dynasty
+    ),
+    expand = unit(0.01, "mm"),
+    label.family = c("Poppins"),
+    label.fontsize = 8,
+    label.buffer = unit(5, "mm"),
+    label.hjust = 1,
+    show.legend = FALSE
+  ) +
+  theme(legend.position = "bottom") +
+  theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank()) +
+  scale_x_date(expand = expand_scale(mult = c(0.02, 0.3))) +
+  ylab(NULL) +
+  xlab("Years") +
+  labs(color = "Dynasty") +
+  labs(title = str_wrap("Roman emperors: their birth, death and reign", 35)) +
+  labs(subtitle = str_wrap("Colored bars represent the lifespan whereas the black bars the duration of the reign of each emperor", 60)) +
+  labs(caption = "Data: https://bit.ly/2N2spWr | Visualization: @philmassicotte") +
+  scale_color_brewer(palette = "Pastel2")
+
+ggsave(
+  here::here("graphs", "tidytuesday_2019_week33.png"),
+  type = "cairo",
+  dpi = 600,
+  height = 14,
+  width = 8
+)
+```
+
+## Causes of death
+
+```{r}
+emperors %>% 
+  count(cause) %>% 
+  mutate(cause = fct_reorder(cause, n)) %>% 
+  ggplot(aes(x = cause, y = n)) +
+  geom_col() +
+  coord_flip() +
+  xlab(NULL) +
+  ylab("Number of death") +
+  scale_y_continuous(expand = expand_scale(mult = c(0, 0.2))) +
+  labs(title = "Principal causes of death") +
+  labs(subtitle = glue("Based on {nrow(emperors)} observations")) +
+  labs(caption = "Data: https://bit.ly/2N2spWr | Visualization: @philmassicotte")
+```
+
+## Some stats
+
+```{r, echo=FALSE}
+emperors %>%
+  summarise(
+    `Average age at death` = paste(round(mean(age), 0), "years old"),
+    `Average reign duration` = paste(round(mean(reign_duration), 0), "years old"),
+    `Youngest emperor` = paste(round(min(age), 0), "years old"),
+    `Oldest emperor` = paste(round(max(age), 0), "years old"),
+    `Longest reign` = paste(round(max(reign_duration), 2), "years"),
+    `Shortest reign` = paste(round(min(reign_duration), 2), "years"),
+  ) %>%
+  gather() %>% 
+  set_names(c("Stats", "Age")) %>% 
+  knitr::kable()
+```
+
