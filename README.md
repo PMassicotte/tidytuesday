@@ -40,3 +40,7 @@ My contributions to the [Tidytuesday](https://github.com/rfordatascience/tidytue
 ## Week 3
 
 ![](graphs/tidytuesday_2020_week03.png)
+
+## Week 4
+
+![](graphs/tidytuesday_2020_week04.png)
