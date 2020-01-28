@@ -11,7 +11,7 @@ sf_trees <- read_csv(
   "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-28/sf_trees.csv"
 )
 
-class(sf_trees)
+skimr::skim(sf_trees)
 
 sf_trees %>%
   count(legal_status, sort = TRUE)
@@ -24,6 +24,9 @@ sf_trees %>%
 
 sf_trees %>%
   count(caretaker, sort = TRUE)
+
+sf_trees %>%
+  count(legal_status, sort = TRUE)
 
 # San Francisco shapefile -------------------------------------------------
 
@@ -38,6 +41,11 @@ sf_shapefile <- unzip(sf_shapefile, exdir = td)
 sf <- st_read(td) %>%
   mutate(name = as.character(name))
 
+sf_outline <- sf %>%
+  st_simplify() %>%
+  st_union() %>%
+  st_buffer(dist = 0.001)
+
 # Road --------------------------------------------------------------------
 
 roads <- st_bbox(sf) %>%
@@ -48,7 +56,6 @@ roads <- st_bbox(sf) %>%
 roads2 <- roads$osm_lines %>%
   st_transform(st_crs(sf)) %>%
   st_intersection(sf)
-
 
 # -------------------------------------------------------------------------
 
@@ -90,7 +97,9 @@ df_viz <- df %>%
 
 # Plot --------------------------------------------------------------------
 
-subtitle <- glue("There are a total of **{nrow(sf_trees)} trees** in San Francisco regrouped into **{length(unique(sf_trees$species))} species**.")
+subtitle <- glue(
+  "There are a total of **{nrow(sf_trees)} trees** in San Francisco regrouped into **{length(unique(sf_trees$species))} species**."
+)
 
 p <- df_viz %>%
   ggplot() +
@@ -111,12 +120,18 @@ p <- df_viz %>%
     )
   ) +
   geom_sf(
-    data = roads2,
-    color = "#3c3c3c",
-    size = 0.05,
-    inherit.aes = FALSE,
-    alpha = 0.5
+    data = sf_outline,
+    color = "#808080",
+    fill = NA,
+    size = 0.75
   ) +
+  # geom_sf(
+  #   data = roads2,
+  #   color = "#383838",
+  #   size = 0.05,
+  #   alpha = 0.25,
+  #   inherit.aes = FALSE
+  # ) +
   coord_sf(crs = 7131) +
   scale_x_continuous(expand = c(0.15, 0.1)) +
   # geom_sf_label(
@@ -144,8 +159,8 @@ p <- df_viz %>%
     legend.key = element_blank(),
     legend.text = element_text(color = "white"),
     legend.title = element_text(color = "white"),
-    plot.title = element_text(color = "white", hjust = 0.5),
-    plot.subtitle = element_markdown(color = "white", hjust = 0.5),
+    plot.title = element_text(color = "white", hjust = 0.5, family = "Amaranth", size = 32),
+    plot.subtitle = element_markdown(color = "white", hjust = 0.5, family = "Titillium Web"),
     plot.caption = element_text(color = "gray75", size = 8, hjust = 0.5)
   )
 

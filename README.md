@@ -44,3 +44,7 @@ My contributions to the [Tidytuesday](https://github.com/rfordatascience/tidytue
 ## Week 4
 
 ![](graphs/tidytuesday_2020_week04.png)
+
+## Week 5 :evergreen_tree:
+
+![](graphs/tidytuesday_2020_week05.png)
