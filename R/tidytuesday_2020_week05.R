@@ -98,14 +98,14 @@ df_viz <- df %>%
 # Plot --------------------------------------------------------------------
 
 subtitle <- glue(
-  "There are a total of **{nrow(sf_trees)} trees** in San Francisco regrouped into **{length(unique(sf_trees$species))} species**."
+  "There are a total of **{nrow(sf_trees)} trees** in San Francisco regrouped into **{length(unique(sf_trees$species))} species**.<br>The district with the most number of trees is **{filter(df_viz, n == max(n)) %>% pull(name)}** whereas the one with<br>the least number of trees is **{filter(df_viz, n == min(n)) %>% pull(name) %>% .[1]}**."
 )
 
 p <- df_viz %>%
   ggplot() +
   geom_sf(aes(fill = n), color = "#333333", size = 0.25) +
   rcartocolor::scale_fill_carto_c(
-    palette = "DarkMint",
+    palette = "Mint",
     labels = scales::label_number_auto(),
     guide = guide_legend(
       direction = "horizontal",
@@ -121,17 +121,17 @@ p <- df_viz %>%
   ) +
   geom_sf(
     data = sf_outline,
-    color = "#808080",
+    color = "gray80",
     fill = NA,
     size = 0.75
   ) +
-  # geom_sf(
-  #   data = roads2,
-  #   color = "#383838",
-  #   size = 0.05,
-  #   alpha = 0.25,
-  #   inherit.aes = FALSE
-  # ) +
+  geom_sf(
+    data = roads2,
+    color = "#383838",
+    size = 0.05,
+    alpha = 0.25,
+    inherit.aes = FALSE
+  ) +
   coord_sf(crs = 7131) +
   scale_x_continuous(expand = c(0.15, 0.1)) +
   # geom_sf_label(
