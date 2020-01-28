@@ -118,6 +118,7 @@ p <- df_viz %>%
     alpha = 0.5
   ) +
   coord_sf(crs = 7131) +
+  scale_x_continuous(expand = c(0.15, 0.1)) +
   # geom_sf_label(
   #   data = parks,
   #   aes(label = name)
