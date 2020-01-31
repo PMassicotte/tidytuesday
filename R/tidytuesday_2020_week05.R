@@ -57,24 +57,6 @@ roads2 <- roads$osm_lines %>%
   st_transform(st_crs(sf)) %>%
   st_intersection(sf)
 
-# -------------------------------------------------------------------------
-
-hedge <- st_bbox(sf) %>%
-  opq() %>%
-  add_osm_feature("leisure", value = "park") %>%
-  osmdata_sf()
-
-hedge$osm_multipolygons %>%
-  ggplot() +
-  geom_sf()
-
-parks <- st_union(hedge$osm_multipolygons, hedge$osm_polygons) %>%
-  st_transform(st_crs(sf)) %>%
-  st_intersection(sf)
-
-parks <- parks %>%
-  filter(str_detect(name, "Presidio|Golden|Merced|Twin"))
-
 # Stats -------------------------------------------------------------------
 
 trees <- sf_trees %>%
@@ -93,7 +75,10 @@ df_viz <- df %>%
   summarise(
     mean_height = mean(dbh, na.rm = TRUE),
     n = n()
-  )
+  ) %>%
+  mutate(area = st_area(geometry)) %>%
+  mutate(area = units::set_units(area, km^2)) %>%
+  mutate(tree_density = n / area)
 
 # Plot --------------------------------------------------------------------
 
@@ -139,7 +124,7 @@ p <- df_viz %>%
   #   aes(label = name)
   # ) +
   labs(
-    title = "The trees of San Francisco",
+    title = "Street trees of San Francisco",
     subtitle = subtitle,
     caption = "Tidytuesday 2020 week #5 | Data: data.sfgov.org | @philmassicotte"
   ) +
