@@ -34,14 +34,16 @@ df <- hotels %>%
   count(country, sort = TRUE) %>%
   filter(country != "NULL") %>%
   mutate(
-    country_name = countrycode::countrycode(
+    country_iso2c = countrycode::countrycode(
       country,
       origin = "iso3c",
-      destination = "country.name",
+      destination = "iso2c",
       custom_match = list("TMP" = "East Timor")
     )
   ) %>%
-  unnest(country_name)
+  unnest(country_iso2c)
+
+df
 
 proj <- 3034
 
@@ -58,50 +60,30 @@ eu_countries <-
   )) %>%
   st_transform(crs = proj)
 
-sf_country <-
-  rnaturalearth::ne_countries(returnclass = "sf", scale = 50) %>%
-  st_transform(crs = proj)
+eu_outlines <- eu_countries %>%
+  group_by(CNTR_CODE) %>%
+  summarise(geometry = sf::st_union(geometry)) %>%
+  mutate(center = st_centroid(geometry))
 
-sf_country <- st_join(eu_countries, sf_country)
-
-sf_country %>%
-  ggplot() +
-  geom_sf()
-
-df <-
-  full_join(df, sf_country %>% as_tibble(), by = c("country" = "adm0_a3")) %>%
+df <- merge(df, eu_outlines, by.x = "country_iso2c", by.y = "CNTR_CODE") %>%
   st_as_sf()
 
 fromto <- df %>%
-  select(country, n, geometry) %>%
-  group_by(country, n) %>%
-  # st_union() %>%
-  summarise(center = st_centroid(st_union(geometry))) %>%
-  # st_set_geometry(NULL) %>%
-  cbind(., st_coordinates(.$center)) %>%
-  as_tibble() %>%
-  rename(
-    longitude = X,
-    latitude = Y
-  ) %>%
-  arrange(desc(n)) %>%
-  filter(country != "PRT")
-
-fromto <- fromto %>%
-  drop_na(n) %>%
-  mutate(bin = santoku::chop_equally(n, groups = 4))
-
-fromto %>%
-  distinct(bin)
+  cbind(st_coordinates(.$center)) %>%
+  rename(longitude = X, latitude = Y) %>%
+  select(longitude, latitude, n) %>%
+  as_tibble()
 
 # Plot --------------------------------------------------------------------
 
-df %>%
+eu_countries %>%
+  filter(CNTR_CODE %in% df$country_iso2c) %>%
   ggplot() +
   geom_sf(
     size = 0.1, color = "gray20",
-    aes(fill = as.numeric(factor(country_name)))
+    aes(fill = as.numeric(factor(CNTR_CODE)))
   ) +
+  geom_sf(data = eu_outlines, color = "white", fill = "transparent", size = 0.1) +
   annotate(
     "text",
     x = 5264359,
