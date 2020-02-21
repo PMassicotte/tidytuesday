@@ -48,3 +48,12 @@ My contributions to the [Tidytuesday](https://github.com/rfordatascience/tidytue
 ## Week 5 :evergreen_tree:
 
 ![](graphs/tidytuesday_2020_week05.png)
+
+## Week 7
+
+![](graphs/tidytuesday_2020_week07.png)
+
+
+## Week 8
+
+![](graphs/tidytuesday_2020_week08.png)
