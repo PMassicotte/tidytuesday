@@ -53,7 +53,10 @@ My contributions to the [Tidytuesday](https://github.com/rfordatascience/tidytue
 
 ![](graphs/tidytuesday_2020_week07.png)
 
-
 ## Week 8
 
 ![](graphs/tidytuesday_2020_week08.png)
+
+## Week 10
+
+![](graphs/tidytuesday_2020_week10.png)
