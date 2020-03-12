@@ -85,7 +85,8 @@ p <- df_viz %>%
         b = unit(30, "cm")
       )),
     # plot.subtitle = element_text(hjust = 0.5),
-    plot.caption = element_text(color = "white", size = 8, hjust = 1),
+    plot.caption = element_text(color = "gray75", size = 8, hjust = 1),
+    plot.caption.position = "plot",
     strip.text.y = element_text(
       margin = margin(10, 1, 10, 1, "cm"),
       angle = 360,
