@@ -65,3 +65,6 @@ My contributions to the [Tidytuesday](https://github.com/rfordatascience/tidytue
 
 ![](graphs/tidytuesday_2020_week17.png)
 
+## Week 29
+
+![](graphs/tidytuesday_2020_week29.png)
